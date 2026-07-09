@@ -1,0 +1,39 @@
+import express from 'express';
+import cors from 'cors';
+import cookieParser from 'cookie-parser';
+import authRoutes from './routes/auth.routes';
+import categoryRoutes from './routes/category.routes';
+import productRoutes from './routes/product.routes';
+import uploadRoutes from './routes/upload.routes';
+import checkoutRoutes from './routes/checkout.routes';
+import analyticsRoutes from './routes/analytics.routes';
+import settingsRoutes from './routes/settings.routes';
+import auditRoutes from './routes/audit.routes';
+
+
+const app = express();
+
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  credentials: true,
+}));
+
+// Stripe webhook must bypass express.json()
+app.use('/api/checkout/webhook', express.raw({ type: 'application/json' }));
+
+app.use(express.json());
+app.use(cookieParser());
+
+app.use('/api/auth', authRoutes);
+app.use('/api/categories', categoryRoutes);
+app.use('/api/products', productRoutes);
+app.use('/api/upload', uploadRoutes);
+app.use('/api/checkout', checkoutRoutes);
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/settings', settingsRoutes);
+app.use('/api/audit-logs', auditRoutes);
+app.get('/health', (req, res) => {
+  res.json({ success: true, message: 'Server is running' });
+});
+
+export default app;
