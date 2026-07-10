@@ -12,5 +12,8 @@ router.post('/login', AuthController.login);
 router.post('/refresh-token', AuthController.refresh);
 router.post('/logout', authenticate, AuthController.logout);
 router.get('/profile', authenticate, AuthController.profile);
+router.put('/profile', authenticate, AuthController.updateProfile);
+router.get('/wishlist', authenticate, AuthController.getWishlist);
+router.post('/wishlist/:productId', authenticate, AuthController.toggleWishlist);
 
 export default router;

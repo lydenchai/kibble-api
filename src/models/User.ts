@@ -3,9 +3,11 @@ import bcrypt from 'bcrypt';
 
 export interface IAddress {
   street: string;
-  city: string;
-  state: string;
-  zip: string;
+  houseNumber: string;
+  village: string;
+  commune: string;
+  district: string;
+  province: string;
   country: string;
   isDefault: boolean;
 }
@@ -24,10 +26,12 @@ export interface IUser extends Document {
 }
 
 const AddressSchema = new Schema<IAddress>({
-  street: { type: String, required: true },
-  city: { type: String, required: true },
-  state: { type: String, required: true },
-  zip: { type: String, required: true },
+  street: { type: String, required: false },
+  houseNumber: { type: String, required: false },
+  village: { type: String, required: true },
+  commune: { type: String, required: true },
+  district: { type: String, required: true },
+  province: { type: String, required: true },
   country: { type: String, required: true },
   isDefault: { type: Boolean, default: false }
 });

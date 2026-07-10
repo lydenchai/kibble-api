@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import { AuthService, registerSchema, loginSchema } from '../services/auth.service';
 import { z } from 'zod';
 import { verifyRefreshToken } from '../utils/jwt';
+import { User } from '../models/User';
+import bcrypt from 'bcrypt';
 
 export class AuthController {
   static async register(req: Request, res: Response): Promise<void> {
@@ -32,6 +34,7 @@ export class AuthController {
 
       res.status(200).json({ success: true, data: { user: { id: user._id, email: user.email, name: user.name, role: user.role }, accessToken } });
     } catch (error: any) {
+      require('fs').appendFileSync('login_debug.log', JSON.stringify({ time: new Date(), body: req.body, error: error.message || error }) + '\\n');
       res.status(401).json({ success: false, error: { code: 'UNAUTHORIZED', message: error.message } });
     }
   }
@@ -74,5 +77,74 @@ export class AuthController {
 
   static async profile(req: Request, res: Response): Promise<void> {
     res.status(200).json({ success: true, data: { user: req.user } });
+  }
+
+  static async updateProfile(req: Request, res: Response): Promise<void> {
+    try {
+      const { name, phone, currentPassword, newPassword } = req.body;
+      const user = await User.findById(req.user._id);
+      if (!user) {
+        res.status(404).json({ success: false, error: { message: 'User not found' } });
+        return;
+      }
+
+      if (name) user.name = name;
+      if (phone !== undefined) user.phone = phone;
+
+      if (newPassword) {
+        if (!currentPassword) {
+          res.status(400).json({ success: false, error: { message: 'Current password is required to set a new password' } });
+          return;
+        }
+        const valid = await user.comparePassword(currentPassword);
+        if (!valid) {
+          res.status(400).json({ success: false, error: { message: 'Current password is incorrect' } });
+          return;
+        }
+        const salt = await bcrypt.genSalt(10);
+        user.password = await bcrypt.hash(newPassword, salt);
+      }
+
+      await user.save();
+      res.status(200).json({ success: true, data: { user: { id: user._id, name: user.name, email: user.email, phone: user.phone } } });
+    } catch (error: any) {
+      res.status(500).json({ success: false, error: { message: error.message } });
+    }
+  }
+
+  static async toggleWishlist(req: Request, res: Response): Promise<void> {
+    try {
+      const user = await User.findById(req.user._id);
+      if (!user) {
+        res.status(404).json({ success: false, error: { message: 'User not found' } });
+        return;
+      }
+
+      const productId = req.params.productId;
+      const idx = user.wishlist.findIndex(id => id.toString() === productId);
+      if (idx === -1) {
+        user.wishlist.push(productId as any);
+      } else {
+        user.wishlist.splice(idx, 1);
+      }
+
+      await user.save();
+      res.status(200).json({ success: true, data: { wishlist: user.wishlist } });
+    } catch (error: any) {
+      res.status(500).json({ success: false, error: { message: error.message } });
+    }
+  }
+
+  static async getWishlist(req: Request, res: Response): Promise<void> {
+    try {
+      const user = await User.findById(req.user._id).populate('wishlist').lean();
+      if (!user) {
+        res.status(404).json({ success: false, error: { message: 'User not found' } });
+        return;
+      }
+      res.status(200).json({ success: true, data: { wishlist: user.wishlist } });
+    } catch (error: any) {
+      res.status(500).json({ success: false, error: { message: error.message } });
+    }
   }
 }

@@ -19,7 +19,7 @@ export interface IProduct extends Document {
   brand: string;
   images: string[];
   variants: IVariant[];
-  petType: 'dog' | 'cat' | 'bird' | 'small-pet' | 'fish' | 'reptile' | 'other';
+  petType: 'dog' | 'cat' | 'bird' | 'small-pet' | 'fish' | 'reptile' | 'both' | 'other';
   tags: string[];
   ratingAvg: number;
   ratingCount: number;
@@ -44,7 +44,7 @@ const ProductSchema = new Schema<IProduct>({
   brand: { type: String, required: true },
   images: [{ type: String }],
   variants: [VariantSchema],
-  petType: { type: String, enum: ['dog', 'cat', 'bird', 'small-pet', 'fish', 'reptile', 'other'], required: true },
+  petType: { type: String, enum: ['dog', 'cat', 'bird', 'small-pet', 'fish', 'reptile', 'both', 'other'], required: true },
   tags: [{ type: String }],
   ratingAvg: { type: Number, default: 0, min: 0, max: 5 },
   ratingCount: { type: Number, default: 0 },

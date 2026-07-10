@@ -48,7 +48,12 @@ export class ProductController {
       res.status(200).json({
         success: true,
         data: products,
-        pagination: { page: Number(page), limit: Number(limit), total },
+        pagination: {
+          page: Number(page),
+          limit: Number(limit),
+          total,
+          pages: Math.ceil(total / Number(limit)),
+        },
       });
     } catch (error: any) {
       res

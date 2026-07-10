@@ -13,11 +13,16 @@ export class CheckoutController {
   static async createIntent(req: Request, res: Response) {
     try {
       const userId = req.user._id;
-      const { couponCode, shippingAddress } = req.body;
+      const { couponCode, shippingAddress, items: requestItems } = req.body;
 
-      // 1. Get Cart
-      const cart = await Cart.findOne({ user: userId });
-      if (!cart || cart.items.length === 0) {
+      // 1. Get Cart from DB or Request
+      let cartItems = requestItems || [];
+      if (!cartItems || cartItems.length === 0) {
+        const cart = await Cart.findOne({ user: userId });
+        if (cart) cartItems = cart.items;
+      }
+
+      if (!cartItems || cartItems.length === 0) {
         return res.status(400).json({ success: false, error: { message: 'Cart is empty' } });
       }
 
@@ -25,12 +30,13 @@ export class CheckoutController {
       let subtotal = 0;
       const orderItems = [];
 
-      for (const item of cart.items) {
-        const product = await Product.findById(item.product);
+      for (const item of cartItems) {
+        const product = await Product.findById(item.product || item.productId);
         if (!product) throw new Error('Product not found');
         
-        const variant = product.variants.find(v => v.sku === item.variantSku);
-        if (!variant) throw new Error(`Variant ${item.variantSku} not found`);
+        const variantSku = item.variantSku || item.sku;
+        const variant = product.variants.find(v => v.sku === variantSku);
+        if (!variant) throw new Error(`Variant ${variantSku} not found`);
         
         if (variant.stock < item.quantity) {
           throw new Error(`Insufficient stock for ${product.name}`);
