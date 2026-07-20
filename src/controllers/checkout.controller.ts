@@ -1,13 +1,9 @@
 import { Request, Response } from 'express';
-import Stripe from 'stripe';
 import { Order } from '../models/Order';
 import { Cart } from '../models/Cart';
 import { Product } from '../models/Product';
 import { Coupon } from '../models/Coupon';
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
-  apiVersion: '2025-02-24.acacia' as any
-});
+import { sseService } from '../services/sse.service';
 
 export class CheckoutController {
   static async createIntent(req: Request, res: Response) {
@@ -31,8 +27,9 @@ export class CheckoutController {
       const orderItems = [];
 
       for (const item of cartItems) {
-        const product = await Product.findById(item.product || item.productId);
-        if (!product) throw new Error('Product not found');
+        const idToFind = item.product || item.productId;
+        const product = await Product.findById(idToFind);
+        if (!product) throw new Error(`Product not found for ID: ${idToFind}. Your cart might have stale items. Please clear your cart and try again.`);
         
         const variantSku = item.variantSku || item.sku;
         const variant = product.variants.find(v => v.sku === variantSku);
@@ -70,22 +67,14 @@ export class CheckoutController {
       const tax = (subtotal - discount) * taxRate;
       const total = subtotal - discount + tax + shipping;
 
-      // 5. Create Stripe PaymentIntent
-      const paymentIntent = await stripe.paymentIntents.create({
-        amount: Math.round(total * 100), // Stripe expects cents
-        currency: 'usd',
-        metadata: { userId: userId.toString(), couponCode }
-      });
-
-      // 6. Create Pending Order
+      // 5. Create Pending Order for ABA QR Payment
       const order = await Order.create({
         user: userId,
         items: orderItems,
         shippingAddress,
         status: 'pending',
         paymentStatus: 'pending',
-        paymentMethod: 'stripe',
-        stripePaymentIntentId: paymentIntent.id,
+        paymentMethod: 'aba_qr',
         couponCode,
         subtotal,
         tax,
@@ -94,44 +83,27 @@ export class CheckoutController {
         total
       });
 
-      res.status(200).json({ success: true, data: { clientSecret: paymentIntent.client_secret, orderId: order._id } });
+      // 6. Decrement stock immediately
+      for (const item of order.items) {
+        await Product.updateOne(
+          { 'variants.sku': item.sku },
+          { $inc: { 'variants.$.stock': -item.quantity } }
+        );
+      }
+
+      // 7. Empty Cart
+      await Cart.findOneAndUpdate({ user: userId }, { items: [] });
+
+      // 8. Broadcast new order event to admin
+      sseService.broadcast('new_order', {
+        orderId: order._id,
+        total: order.total,
+        customer: req.user.name || 'A customer'
+      });
+
+      res.status(200).json({ success: true, data: { orderId: order._id } });
     } catch (error: any) {
       res.status(400).json({ success: false, error: { message: error.message } });
     }
-  }
-
-  static async handleWebhook(req: Request, res: Response) {
-    const sig = req.headers['stripe-signature'] as string;
-    let event;
-
-    try {
-      event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET as string);
-    } catch (err: any) {
-      return res.status(400).send(`Webhook Error: ${err.message}`);
-    }
-
-    if (event.type === 'payment_intent.succeeded') {
-      const paymentIntent = event.data.object as Stripe.PaymentIntent;
-      
-      const order = await Order.findOne({ stripePaymentIntentId: paymentIntent.id });
-      if (order && order.paymentStatus === 'pending') {
-        order.paymentStatus = 'paid';
-        order.status = 'processing';
-        await order.save();
-
-        // Decrement stock
-        for (const item of order.items) {
-          await Product.updateOne(
-            { 'variants.sku': item.sku },
-            { $inc: { 'variants.$.stock': -item.quantity } }
-          );
-        }
-
-        // Empty Cart
-        await Cart.findOneAndUpdate({ user: order.user }, { items: [] });
-      }
-    }
-
-    res.json({ received: true });
   }
 }

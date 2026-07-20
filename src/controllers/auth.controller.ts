@@ -20,12 +20,18 @@ export class AuthController {
     }
   }
 
+  static getCookieName(req: Request): string {
+    const appType = req.headers['x-app-type'] || 'storefront';
+    return appType === 'admin' ? 'admin_refresh_token' : 'storefront_refresh_token';
+  }
+
   static async login(req: Request, res: Response): Promise<void> {
     try {
       const data = loginSchema.parse(req.body);
       const { user, accessToken, refreshToken } = await AuthService.login(data);
       
-      res.cookie('refreshToken', refreshToken, {
+      const cookieName = AuthController.getCookieName(req);
+      res.cookie(cookieName, refreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'strict',
@@ -34,14 +40,15 @@ export class AuthController {
 
       res.status(200).json({ success: true, data: { user: { id: user._id, email: user.email, name: user.name, role: user.role }, accessToken } });
     } catch (error: any) {
-      require('fs').appendFileSync('login_debug.log', JSON.stringify({ time: new Date(), body: req.body, error: error.message || error }) + '\\n');
+      require('fs').appendFileSync('login_debug.log', JSON.stringify({ time: new Date(), body: req.body, error: error.message || error }) + '\n');
       res.status(401).json({ success: false, error: { code: 'UNAUTHORIZED', message: error.message } });
     }
   }
 
   static async refresh(req: Request, res: Response): Promise<void> {
     try {
-      const token = req.cookies.refreshToken;
+      const cookieName = AuthController.getCookieName(req);
+      const token = req.cookies[cookieName];
       if (!token) {
         res.status(401).json({ success: false, error: { code: 'UNAUTHORIZED', message: 'No refresh token' } });
         return;
@@ -50,7 +57,7 @@ export class AuthController {
       verifyRefreshToken(token);
       const { accessToken, refreshToken } = await AuthService.refresh(token);
       
-      res.cookie('refreshToken', refreshToken, {
+      res.cookie(cookieName, refreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'strict',
@@ -68,7 +75,8 @@ export class AuthController {
       if (req.user) {
         await AuthService.logout(req.user._id);
       }
-      res.clearCookie('refreshToken');
+      const cookieName = AuthController.getCookieName(req);
+      res.clearCookie(cookieName);
       res.status(200).json({ success: true, data: null });
     } catch (error: any) {
       res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: error.message } });

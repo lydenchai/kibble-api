@@ -7,7 +7,9 @@ const router = Router();
 // All order routes require authentication
 router.use(authenticate);
 
+router.get('/', OrderController.getAllOrders);
 router.get('/my', OrderController.getMyOrders);
 router.get('/my/:id', OrderController.getMyOrderById);
+router.put('/:id/status', OrderController.updateOrderStatus);
 
 export default router;

@@ -7,7 +7,4 @@ const router = Router();
 
 router.post('/create-intent', authenticate, CheckoutController.createIntent);
 
-// Stripe webhook must use raw body parsing, not express.json()
-router.post('/webhook', express.raw({ type: 'application/json' }), CheckoutController.handleWebhook);
-
 export default router;

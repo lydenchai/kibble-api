@@ -10,6 +10,9 @@ import analyticsRoutes from './routes/analytics.routes';
 import settingsRoutes from './routes/settings.routes';
 import auditRoutes from './routes/audit.routes';
 import orderRoutes from './routes/order.routes';
+import sseRoutes from './routes/sse.routes';
+import customerRoutes from './routes/customer.routes';
+import marketingRoutes from './routes/marketing.routes';
 
 
 const app = express();
@@ -48,6 +51,9 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/audit-logs', auditRoutes);
 app.use('/api/orders', orderRoutes);
+app.use('/api/notifications', sseRoutes);
+app.use('/api/customers', customerRoutes);
+app.use('/api/marketing', marketingRoutes);
 app.get('/health', (req, res) => {
   res.json({ success: true, message: 'Server is running' });
 });

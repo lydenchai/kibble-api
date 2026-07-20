@@ -51,4 +51,73 @@ export class OrderController {
       res.status(500).json({ success: false, error: { message: error.message } });
     }
   }
+
+  /** GET /api/orders — returns all orders (Admin only ideally, but keeping it simple) */
+  static async getAllOrders(req: Request, res: Response) {
+    try {
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 20;
+      const search = (req.query.search as string) || '';
+
+      const query: any = {};
+      
+      // If there's a search term, try to match by order ID if it's a valid hex string, 
+      // otherwise this would need a text index on customer names (which we might not have)
+      if (search) {
+        if (search.length === 24) {
+          query._id = search;
+        }
+      }
+
+      const [orders, total] = await Promise.all([
+        Order.find(query)
+          .sort({ createdAt: -1 })
+          .skip((page - 1) * limit)
+          .limit(limit)
+          .populate('user', 'name email')
+          .lean(),
+        Order.countDocuments(query),
+      ]);
+
+      res.status(200).json({
+        success: true,
+        data: orders,
+        pagination: {
+          page,
+          limit,
+          total,
+          pages: Math.ceil(total / limit),
+        },
+      });
+    } catch (error: any) {
+      res.status(500).json({ success: false, error: { message: error.message } });
+    }
+  }
+
+  /** PUT /api/orders/:id/status — updates the status of an order */
+  static async updateOrderStatus(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
+
+      const validStatuses = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ success: false, error: { message: 'Invalid status' } });
+      }
+
+      const order = await Order.findByIdAndUpdate(
+        id,
+        { status },
+        { new: true }
+      ).populate('user', 'name email').lean();
+
+      if (!order) {
+        return res.status(404).json({ success: false, error: { message: 'Order not found' } });
+      }
+
+      res.status(200).json({ success: true, data: order });
+    } catch (error: any) {
+      res.status(500).json({ success: false, error: { message: error.message } });
+    }
+  }
 }
