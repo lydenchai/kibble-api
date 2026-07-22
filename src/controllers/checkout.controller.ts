@@ -41,10 +41,13 @@ export class CheckoutController {
 
         subtotal += variant.price * item.quantity;
         orderItems.push({
+          product: product._id,
           name: product.name,
           sku: variant.sku,
           price: variant.price,
-          quantity: item.quantity
+          quantity: item.quantity,
+          image: product.images?.[0] || '',
+          slug: product.slug
         });
       }
 

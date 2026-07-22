@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { Product } from "../models/Product";
+import { Category } from "../models/Category";
 
 export class ProductController {
   static async createProduct(req: Request, res: Response) {
@@ -30,8 +31,16 @@ export class ProductController {
         query.isActive = true;
       }
 
-      if (category) query.category = category;
-      if (petType) query.petType = petType;
+      if (category) {
+        const categorySlugs = (category as string).split(',');
+        const categories = await Category.find({ slug: { $in: categorySlugs } });
+        const categoryIds = categories.map((c: any) => c._id);
+        query.category = { $in: categoryIds };
+      }
+      
+      if (petType) {
+        query.petType = { $in: (petType as string).split(',').map(s => s.toLowerCase()) };
+      }
 
       if (search) {
         query.$text = { $search: search as string };

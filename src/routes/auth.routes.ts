@@ -5,10 +5,8 @@ import { authRateLimiter } from '../middlewares/rateLimit';
 
 const router = Router();
 
-router.use(authRateLimiter);
-
-router.post('/register', AuthController.register);
-router.post('/login', AuthController.login);
+router.post('/register', authRateLimiter, AuthController.register);
+router.post('/login', authRateLimiter, AuthController.login);
 router.post('/refresh-token', AuthController.refresh);
 router.post('/logout', authenticate, AuthController.logout);
 router.get('/profile', authenticate, AuthController.profile);

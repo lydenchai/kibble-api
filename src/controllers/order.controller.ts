@@ -94,20 +94,43 @@ export class OrderController {
     }
   }
 
+  /** GET /api/orders/:id — returns a single order (Admin) */
+  static async getOrderById(req: Request, res: Response) {
+    try {
+      const order = await Order.findById(req.params.id)
+        .populate('user', 'name email phone')
+        .lean();
+
+      if (!order) {
+        return res.status(404).json({ success: false, error: { message: 'Order not found' } });
+      }
+
+      res.status(200).json({ success: true, data: order });
+    } catch (error: any) {
+      res.status(500).json({ success: false, error: { message: error.message } });
+    }
+  }
+
   /** PUT /api/orders/:id/status — updates the status of an order */
   static async updateOrderStatus(req: Request, res: Response) {
     try {
       const { id } = req.params;
-      const { status } = req.body;
+      const { status, trackingNumber, courier, trackingUrl } = req.body;
 
       const validStatuses = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
-      if (!validStatuses.includes(status)) {
+      if (status && !validStatuses.includes(status)) {
         return res.status(400).json({ success: false, error: { message: 'Invalid status' } });
       }
 
+      const updateData: any = {};
+      if (status) updateData.status = status;
+      if (trackingNumber !== undefined) updateData.trackingNumber = trackingNumber;
+      if (courier !== undefined) updateData.courier = courier;
+      if (trackingUrl !== undefined) updateData.trackingUrl = trackingUrl;
+
       const order = await Order.findByIdAndUpdate(
         id,
-        { status },
+        updateData,
         { new: true }
       ).populate('user', 'name email').lean();
 

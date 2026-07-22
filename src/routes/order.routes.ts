@@ -10,6 +10,7 @@ router.use(authenticate);
 router.get('/', OrderController.getAllOrders);
 router.get('/my', OrderController.getMyOrders);
 router.get('/my/:id', OrderController.getMyOrderById);
+router.get('/:id', OrderController.getOrderById);
 router.put('/:id/status', OrderController.updateOrderStatus);
 
 export default router;

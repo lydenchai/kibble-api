@@ -2,10 +2,13 @@ import mongoose, { Document, Schema } from 'mongoose';
 import { IAddress } from './User';
 
 export interface IOrderItem {
+  product?: mongoose.Types.ObjectId;
   name: string;
   sku: string;
   price: number;
   quantity: number;
+  image?: string;
+  slug?: string;
 }
 
 export interface IOrder extends Document {
@@ -22,13 +25,19 @@ export interface IOrder extends Document {
   shipping: number;
   discount: number;
   total: number;
+  trackingNumber?: string;
+  courier?: string;
+  trackingUrl?: string;
 }
 
 const OrderItemSchema = new Schema<IOrderItem>({
+  product: { type: Schema.Types.ObjectId, ref: 'Product' },
   name: { type: String, required: true },
   sku: { type: String, required: true },
   price: { type: Number, required: true },
-  quantity: { type: Number, required: true }
+  quantity: { type: Number, required: true },
+  image: { type: String },
+  slug: { type: String }
 });
 
 const OrderSchema = new Schema<IOrder>({
@@ -44,7 +53,10 @@ const OrderSchema = new Schema<IOrder>({
   tax: { type: Number, required: true },
   shipping: { type: Number, required: true },
   discount: { type: Number, default: 0 },
-  total: { type: Number, required: true }
+  total: { type: Number, required: true },
+  trackingNumber: { type: String },
+  courier: { type: String },
+  trackingUrl: { type: String }
 }, {
   timestamps: true
 });

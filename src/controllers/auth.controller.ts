@@ -137,6 +137,7 @@ export class AuthController {
       }
 
       await user.save();
+      await user.populate('wishlist');
       res.status(200).json({ success: true, data: { wishlist: user.wishlist } });
     } catch (error: any) {
       res.status(500).json({ success: false, error: { message: error.message } });
